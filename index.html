@@ -8,60 +8,113 @@
 </head>
 <body>
     <div>
-        <input type="text" id="original" placeholder="Original text">
-        <input type="number" id="encrypt_offset" placeholder="Encryption offset">
+        <h1>Encrypt Text</h1>
+        <textarea id="original" placeholder="Original text"></textarea>
         <button id="encrypt_button">Encrypt</button>
-        <input type="text" id="encrypted" placeholder="Encrypted text" readonly>
+        <textarea id="encrypted" placeholder="Encrypted text" readonly></textarea>
     </div>
     <div>
         <h1>Decrypt Text</h1>
-        <input type="text" id="encrypted_text" placeholder="Encrypted text">
-        <input type="number" id="decrypt_offset" placeholder="Decryption offset">
+        <textarea id="encrypted_input" placeholder="Encrypted text"></textarea>
         <button id="decrypt_button">Decrypt</button>
-        <input type="text" id="decrypted" placeholder="Decrypted text" readonly>
+        <textarea id="decrypted" placeholder="Decrypted text" readonly></textarea>
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            async function encrypt() {
-                try {
-                    const original = document.getElementById("original").value.trim();
-                    const offset = parseInt(document.getElementById("encrypt_offset").value, 10);
+        let cryptoKey; // Holds the generated key
 
-                    if (!original || isNaN(offset) || offset < 0 || offset > 999) {
-                        alert("Invalid input. Please ensure text is provided and offset is between 0 and 999.");
-                        return;
-                    }
+        // Helper functions for Base64 encoding/decoding
+        const base64Encode = (arrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const base64Decode = (base64String) => Uint8Array.from(atob(base64String), c => c.charCodeAt(0));
 
-                    const encrypted = btoa(unescape(encodeURIComponent(original))) + offset;
-                    document.getElementById("encrypted").value = encrypted;
-                } catch (error) {
-                    console.error("Encryption error:", error);
-                    alert("Encryption failed.");
+        // Generate an AES-GCM key
+        async function generateKey() {
+            return await crypto.subtle.generateKey(
+                {
+                    name: "AES-GCM",
+                    length: 256
+                },
+                true,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        // Encrypt the text
+        async function encryptText() {
+            try {
+                const text = document.getElementById("original").value.trim();
+                if (!text) {
+                    alert("Please enter text to encrypt.");
+                    return;
                 }
+
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+
+                // Generate a random initialization vector (IV)
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+
+                // Encrypt the data
+                const ciphertext = await crypto.subtle.encrypt(
+                    {
+                        name: "AES-GCM",
+                        iv: iv
+                    },
+                    cryptoKey,
+                    data
+                );
+
+                // Combine IV and ciphertext for easy storage
+                const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+                combined.set(iv);
+                combined.set(new Uint8Array(ciphertext), iv.byteLength);
+
+                document.getElementById("encrypted").value = base64Encode(combined);
+            } catch (error) {
+                console.error("Encryption failed:", error);
+                alert("Encryption failed.");
             }
+        }
 
-            async function decrypt() {
-                try {
-                    const encrypted = document.getElementById("encrypted_text").value.trim();
-                    const offset = parseInt(document.getElementById("decrypt_offset").value, 10);
-
-                    if (!encrypted || isNaN(offset) || offset < 0 || offset > 999) {
-                        alert("Invalid input. Please ensure text is provided and offset is between 0 and 999.");
-                        return;
-                    }
-
-                    const base64Text = encrypted.slice(0, -offset.toString().length);
-                    const decrypted = decodeURIComponent(escape(atob(base64Text)));
-                    document.getElementById("decrypted").value = decrypted;
-                } catch (error) {
-                    console.error("Decryption error:", error);
-                    alert("Decryption failed.");
+        // Decrypt the text
+        async function decryptText() {
+            try {
+                const encryptedInput = document.getElementById("encrypted_input").value.trim();
+                if (!encryptedInput) {
+                    alert("Please enter text to decrypt.");
+                    return;
                 }
-            }
 
-            document.getElementById("encrypt_button").addEventListener("click", encrypt);
-            document.getElementById("decrypt_button").addEventListener("click", decrypt);
+                const combined = base64Decode(encryptedInput);
+
+                // Extract the IV and ciphertext
+                const iv = combined.slice(0, 12);
+                const ciphertext = combined.slice(12);
+
+                // Decrypt the data
+                const decrypted = await crypto.subtle.decrypt(
+                    {
+                        name: "AES-GCM",
+                        iv: iv
+                    },
+                    cryptoKey,
+                    ciphertext
+                );
+
+                const decoder = new TextDecoder();
+                document.getElementById("decrypted").value = decoder.decode(decrypted);
+            } catch (error) {
+                console.error("Decryption failed:", error);
+                alert("Decryption failed. Ensure you are using the correct encrypted text.");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Generate a key when the page loads
+            cryptoKey = await generateKey();
+
+            document.getElementById("encrypt_button").addEventListener("click", encryptText);
+            document.getElementById("decrypt_button").addEventListener("click", decryptText);
         });
     </script>
 </body>
