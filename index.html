@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href = "styles.css" rel = "stylesheet" type = "text/css" />
+    <title>Encryption</title>
+  </head>
+
+
+<body>
+    <div>
+        <input type="text" id="original" name="original" placeholder="Original text" />
+        <input type="number" id="encrypt_offset" name="encrypt_offset" placeholder="Encryption offset" />
+        <button id="encrypt_button">Encrypt</button>
+        <input type="text" id="encrypted" name="encrypted" placeholder="Encrypted text" readonly />
+    </div>
+    <div>
+        <h1>Decrypt Text</h1>
+        <input type="text" id="Encrypted-text" name="Encrypted-text" placeholder="Encrypted text"/>
+        <input type="number" id="decrypt_offset" name="decrypt_offset" placeholder="Decryption offset" />
+        <button id="decrypt_button">Decrypt</button>
+        <input type="text" id="decrypted" name="decrypted" placeholder="Decrypted text" readonly />
+    </div>
+</body>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", (event) => {
+        console.log("DOM fully loaded and parsed");
+
+        function encrypt() {
+            const original = document.getElementById("original").value;
+            const offset = parseInt(document.getElementById("encrypt_offset").value, 10);
+            if (offset > 999 || offset < 0) {
+                alert("Offset must be between 0 and 999");
+                return;
+            }
+            const encrypted = btoa(original + offset);
+            console.log(encrypted);
+
+            document.getElementById("encrypted").value = encrypted;
+            copyText("encrypted");
+        }
+
+        function decrypt() {
+            const encrypted = document.getElementById("Encrypted-text").value;
+            const offset = parseInt(document.getElementById("decrypt_offset").value, 10);
+            if (offset > 999 || offset < 0) {
+                alert("Offset must be between 0 and 999");
+                return;
+            }
+            const decrypted = atob(encrypted).slice(0, -offset.toString().length);
+            console.log(decrypted);
+
+            document.getElementById("decrypted").value = decrypted;
+            copyText("decrypted");
+        }
+
+        function copyText(charset) {
+            const textToCopy = document.getElementById(charset).value;
+            navigator.clipboard.writeText(textToCopy).then(
+                function () {
+                    alert("Text copied to clipboard");
+                },
+                function (err) {
+                    console.error("Could not copy text: ", err);
+                }
+            );
+        }
+
+        document.getElementById("decrypt_button").addEventListener("click", decrypt);
+        document.getElementById("encrypt_button").addEventListener("click", encrypt);
+    });
+</script>
+</body>
+</html>
